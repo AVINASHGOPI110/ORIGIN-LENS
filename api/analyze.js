@@ -16,24 +16,22 @@ export default async function handler(req, res) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          contents: [
+  contents: [
+    {
+      parts: image
+        ? [
+            { text: prompt },
             {
-              parts: [
-                { text: prompt },
-                image
-                  ? {
-                      inline_data: {
-                        mime_type: "image/jpeg",
-                        data: image,
-                      },
-                    }
-                  : {},
-              ],
+              inline_data: {
+                mime_type: "image/jpeg",
+                data: image,
+              },
             },
-          ],
-        }),
-      }
-    );
+          ]
+        : [{ text: prompt }],
+    },
+  ],
+})
 
     const data = await response.json();
 
