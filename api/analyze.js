@@ -34,6 +34,7 @@ module.exports = async function handler(req, res) {
 })
 
     const data = await response.json();
+    console.log("GEMINI RESPONSE:", data);
 
     if (data.error) {
       return res.status(400).json({ error: data.error.message });
@@ -45,7 +46,7 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({ answer: aiText });
 
   } catch (error) {
-    console.error("Server Error:", error);
-    return res.status(500).json({ error: "Server error" });
+    console.error("FULL ERROR:", error);
+    return res.status(500).json({ error: error.message });
   }
 }
