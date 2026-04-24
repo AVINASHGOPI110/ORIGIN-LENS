@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Origin Lens — AI Image Detector</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #080b12;
+    --surface: #0e1420;
+    --border: #1a2235;
+    --accent: #4f9eff;
+    --accent2: #a78bfa;
+    --danger: #ff4d6d;
+    --warn: #ffd166;
+    --text: #e8eaf0;
+    --muted: #5a6a8a;
+    --card: #111827;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(79,158,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(79,158,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Ambient glow top */
+  body::after {
+    content: '';
+    position: fixed;
+    top: -200px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 600px;
+    height: 400px;
+    background: radial-gradient(ellipse, rgba(79,158,255,0.08) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 0 24px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Header */
+  header {
+    padding: 48px 0 28px;
+    text-align: center;
+  }
+
+  .logo-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    padding: 8px 18px;
+    border: 1px solid var(--border);
+    border-radius: 99px;
+    background: var(--surface);
+  }
+
+  .logo-icon {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+  }
+
+  .logo-text {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(38px, 6vw, 68px);
+    font-weight: 800;
+    line-height: 1.05;
+    letter-spacing: -1px;
+  }
+
+  h1 span.word-origin {
+    background: linear-gradient(135deg, #ffffff 0%, var(--accent) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  h1 span.word-lens {
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .subtitle {
+    color: var(--muted);
+    font-size: 12px;
+    margin-top: 14px;
+    letter-spacing: 2px;
+  }
+
+  .badge-row {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+  }
+
+  .badge {
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 10px;
+    letter-spacing: 1px;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  /* Upload Zone */
+  .upload-zone {
+    margin: 36px 0;
+    border: 1.5px dashed var(--border);
+    border-radius: 18px;
+    padding: 60px 40px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: var(--surface);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .upload-zone::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 50% 0%, rgba(79,158,255,0.07) 0%, transparent 65%);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .upload-zone:hover, .upload-zone.dragover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+    box-shadow: 0 20px 60px rgba(79,158,255,0.08);
+  }
+
+  .upload-zone:hover::before, .upload-zone.dragover::before { opacity: 1; }
+
+  .upload-icon {
+    width: 68px;
+    height: 68px;
+    margin: 0 auto 22px;
+    border-radius: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px;
+    background: linear-gradient(135deg, rgba(79,158,255,0.15), rgba(167,139,250,0.15));
+    border: 1px solid rgba(79,158,255,0.2);
+    transition: all 0.3s;
+  }
+
+  .upload-zone:hover .upload-icon {
+    box-shadow: 0 0 30px rgba(79,158,255,0.25);
+    border-color: var(--accent);
+  }
+
+  .upload-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 19px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .upload-sub { color: var(--muted); font-size: 12px; }
+
+  .upload-btn {
+    margin-top: 22px;
+    display: inline-block;
+    padding: 11px 30px;
+    background: linear-gradient(135deg, rgba(79,158,255,0.15), rgba(167,139,250,0.15));
+    border: 1px solid rgba(79,158,255,0.4);
+    color: var(--accent);
+    border-radius: 9px;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+  }
+
+  .upload-btn:hover {
+    background: var(--accent);
+    color: var(--bg);
+    border-color: var(--accent);
+  }
+
+  #fileInput { display: none; }
+
+  /* Preview */
+  .preview-section { display: none; margin-bottom: 28px; }
+
+  .preview-img-wrap {
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    max-height: 420px;
+    background: var(--card);
+  }
+
+  .preview-img-wrap img {
+    width: 100%;
+    max-height: 420px;
+    object-fit: contain;
+    display: block;
+  }
+
+  .analyze-btn {
+    width: 100%;
+    margin-top: 14px;
+    padding: 17px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    border-radius: 12px;
+    color: #fff;
+    font-family: 'Syne', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: 0 4px 20px rgba(79,158,255,0.2);
+  }
+
+  .analyze-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 35px rgba(79,158,255,0.35);
+  }
+
+  .analyze-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  /* Loading */
+  .loading { display: none; text-align: center; padding: 56px 20px; }
+
+  .lens-loader {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 28px;
+    position: relative;
+  }
+
+  .lens-outer {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+  }
+
+  .lens-spin {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    border-top-color: var(--accent);
+    border-right-color: var(--accent2);
+    animation: spin 1s linear infinite;
+  }
+
+  .lens-inner {
+    position: absolute;
+    inset: 18px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, rgba(79,158,255,0.2), rgba(167,139,250,0.2));
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.85); } }
+
+  .loading-text {
+    font-family: 'Syne', sans-serif;
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 8px;
+  }
+
+  .loading-step { font-size: 11px; color: var(--muted); letter-spacing: 1px; }
+
+  /* Results */
+  .results { display: none; animation: fadeUp 0.5s ease forwards; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* Verdict */
+  .verdict-banner {
+    border-radius: 16px;
+    padding: 30px 32px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .verdict-banner::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -50px;
+    width: 200px;
+    height: 200px;
+    border-radius: 50%;
+    opacity: 0.06;
+  }
+
+  .verdict-banner.ai {
+    background: linear-gradient(135deg, rgba(255,77,109,0.12), rgba(255,77,109,0.04));
+    border: 1px solid rgba(255,77,109,0.25);
+  }
+
+  .verdict-banner.ai::before { background: var(--danger); }
+
+  .verdict-banner.real {
+    background: linear-gradient(135deg, rgba(79,158,255,0.12), rgba(167,139,250,0.06));
+    border: 1px solid rgba(79,158,255,0.25);
+  }
+
+  .verdict-banner.real::before { background: var(--accent); }
+
+  .verdict-icon { font-size: 48px; flex-shrink: 0; }
+
+  .verdict-label {
+    font-size: 10px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .verdict-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 30px;
+    font-weight: 800;
+  }
+
+  .verdict-banner.ai .verdict-title { color: var(--danger); }
+  .verdict-banner.real .verdict-title { color: var(--accent); }
+  .verdict-sub { font-size: 12px; color: var(--muted); margin-top: 5px; line-height: 1.6; }
+
+  /* Confidence */
+  .confidence-wrap {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 22px 26px;
+    margin-bottom: 20px;
+  }
+
+  .conf-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 14px;
+  }
+
+  .conf-label { font-size: 11px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; }
+
+  .conf-value {
+    font-family: 'Syne', sans-serif;
+    font-size: 32px;
+    font-weight: 800;
+    line-height: 1;
+  }
+
+  .conf-bar-bg {
+    height: 6px;
+    background: var(--border);
+    border-radius: 99px;
+    overflow: hidden;
+  }
+
+  .conf-bar-fill {
+    height: 100%;
+    border-radius: 99px;
+    transition: width 1.4s cubic-bezier(0.16,1,0.3,1);
+    width: 0%;
+  }
+
+  .conf-bar-fill.ai { background: linear-gradient(90deg, #ff4d6d, #ff9a6c); }
+  .conf-bar-fill.real { background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+
+  /* Details Grid */
+  .details-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(195px, 1fr));
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .detail-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 15px 18px;
+    transition: border-color 0.2s, transform 0.2s;
+  }
+
+  .detail-card:hover { border-color: rgba(79,158,255,0.3); transform: translateY(-1px); }
+
+  .detail-key {
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 7px;
+  }
+
+  .detail-val {
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  /* Signals */
+  .signals-section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px 24px;
+    margin-bottom: 20px;
+  }
+
+  .section-title {
+    font-size: 10px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+
+  .tags { display: flex; flex-wrap: wrap; gap: 8px; }
+
+  .tag {
+    padding: 5px 12px;
+    border-radius: 7px;
+    font-size: 11px;
+    letter-spacing: 0.3px;
+  }
+
+  .tag.positive {
+    background: rgba(79,158,255,0.1);
+    border: 1px solid rgba(79,158,255,0.25);
+    color: var(--accent);
+  }
+
+  .tag.negative {
+    background: rgba(255,77,109,0.1);
+    border: 1px solid rgba(255,77,109,0.25);
+    color: var(--danger);
+  }
+
+  .tag.neutral {
+    background: rgba(255,209,102,0.1);
+    border: 1px solid rgba(255,209,102,0.25);
+    color: var(--warn);
+  }
+
+  /* Breakdown */
+  .breakdown {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px 24px;
+    margin-bottom: 20px;
+  }
+
+  .breakdown-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 11px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+  }
+
+  .breakdown-item:last-child { border-bottom: none; }
+  .breakdown-name { color: var(--muted); }
+  .breakdown-score { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 15px; }
+
+  /* Reset */
+  .reset-btn {
+    width: 100%;
+    padding: 14px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 40px;
+  }
+
+  .reset-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  footer {
+    text-align: center;
+    padding: 20px 0 40px;
+    font-size: 11px;
+    color: var(--muted);
+    border-top: 1px solid var(--border);
+    letter-spacing: 1px;
+  }
+
+  footer span {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-weight: 600;
+  }
+
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div class="logo-wrap">
+      <div class="logo-icon">🔭</div>
+      <div class="logo-text">Origin Lens</div>
+    </div>
+    <h1><span class="word-origin">Origin</span> <span class="word-lens">Lens</span></h1>
+    <p class="subtitle">// DETECT · ANALYZE · REVEAL THE TRUTH //</p>
+    <div class="badge-row">
+      <span class="badge">AI Detection</span>
+      <span class="badge">Image Forensics</span>
+      <span class="badge">Instant Analysis</span>
+    </div>
+  </header>
+
+  <!-- Upload -->
+  <div class="upload-zone" id="uploadZone">
+    <div class="upload-icon">🔭</div>
+    <div class="upload-title">Drop your image here</div>
+    <div class="upload-sub">Supports JPG, PNG, WEBP, GIF — up to 10MB</div>
+    <button class="upload-btn" onclick="document.getElementById('fileInput').click()">Browse Files</button>
+    <input type="file" id="fileInput" accept="image/*"/>
+  </div>
+
+  <!-- Preview -->
+  <div class="preview-section" id="previewSection">
+    <div class="preview-img-wrap">
+      <img id="previewImg" src="" alt="Preview"/>
+    </div>
+    <button class="analyze-btn" id="analyzeBtn" onclick="analyzeImage()">
+      🔭 Reveal Origin
+    </button>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading" id="loading">
+    <div class="lens-loader">
+      <div class="lens-outer"></div>
+      <div class="lens-spin"></div>
+      <div class="lens-inner"></div>
+    </div>
+    <div class="loading-text">Revealing origin...</div>
+    <div class="loading-step" id="loadingStep">// Extracting metadata</div>
+  </div>
+
+  <!-- Results -->
+  <div class="results" id="results">
+
+    <div class="verdict-banner" id="verdictBanner">
+      <div class="verdict-icon" id="verdictIcon"></div>
+      <div>
+        <div class="verdict-label">Origin Detected</div>
+        <div class="verdict-title" id="verdictTitle"></div>
+        <div class="verdict-sub" id="verdictSub"></div>
+      </div>
+    </div>
+
+    <div class="confidence-wrap">
+      <div class="conf-header">
+        <span class="conf-label">Confidence Score</span>
+        <span class="conf-value" id="confValue"></span>
+      </div>
+      <div class="conf-bar-bg">
+        <div class="conf-bar-fill" id="confBar"></div>
+      </div>
+    </div>
+
+    <div class="details-grid" id="detailsGrid"></div>
+
+    <div class="signals-section">
+      <div class="section-title">// Detection Signals</div>
+      <div class="tags" id="signalTags"></div>
+    </div>
+
+    <div class="breakdown">
+      <div class="section-title">// Analysis Breakdown</div>
+      <div id="breakdownItems"></div>
+    </div>
+
+    <button class="reset-btn" onclick="resetAll()">↺ Analyze Another Image</button>
+  </div>
+
+  <footer><span>Origin Lens</span> — AI-Powered Image Forensics · Results are probabilistic estimates</footer>
+</div>
+
+<script>
+let currentFile = null;
+
+const zone = document.getElementById('uploadZone');
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+zone.addEventListener('drop', e => {
+  e.preventDefault();
+  zone.classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) handleFile(file);
+});
+zone.addEventListener('click', () => document.getElementById('fileInput').click());
+document.getElementById('fileInput').addEventListener('change', e => {
+  if (e.target.files[0]) handleFile(e.target.files[0]);
+});
+
+function handleFile(file) {
+  currentFile = file;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('previewImg').src = e.target.result;
+    document.getElementById('uploadZone').style.display = 'none';
+    document.getElementById('previewSection').style.display = 'block';
+    document.getElementById('results').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function analyzeImage() {
+  const btn = document.getElementById('analyzeBtn');
+  btn.disabled = true;
+  document.getElementById('previewSection').style.display = 'none';
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('results').style.display = 'none';
+
+  const steps = [
+    '// Extracting metadata',
+    '// Analyzing pixel patterns',
+    '// Checking noise distribution',
+    '// Scanning for AI artifacts',
+    '// Computing confidence score',
+    '// Generating report...'
+  ];
+
+  let stepIdx = 0;
+  const stepEl = document.getElementById('loadingStep');
+  const stepInterval = setInterval(() => {
+    if (stepIdx < steps.length - 1) stepEl.textContent = steps[++stepIdx];
+  }, 650);
+
+  const img = document.getElementById('previewImg');
+  const base64 = img.src.split(',')[1];
+  const mimeType = currentFile.type || 'image/jpeg';
+  const sizeKB = Math.round(currentFile.size / 1024);
+  const sizeMB = (currentFile.size / (1024*1024)).toFixed(2);
+
+  const dims = await new Promise(res => {
+    const i = new Image();
+    i.onload = () => res({ w: i.naturalWidth, h: i.naturalHeight });
+    i.src = img.src;
+  });
+
+  const prompt = `You are an expert forensic image analyst specializing in detecting AI-generated images versus real camera photos.
+
+Analyze this image carefully and return ONLY valid JSON (no markdown, no extra text):
+{
+  "verdict": "AI_GENERATED" or "CAMERA_PHOTO",
+  "confidence": <number 0-100>,
+  "summary": "<1-2 sentence plain English verdict>",
+  "details": {
+    "dominant_colors": "<e.g. Blue, Green, Brown>",
+    "lighting": "<e.g. Natural, Artificial, Studio, Mixed>",
+    "texture_quality": "<e.g. Hyper-smooth, Natural, Grainy, Sharp>",
+    "subject_type": "<e.g. Portrait, Landscape, Object, Abstract>",
+    "style": "<e.g. Photorealistic, Stylized, Documentary, Artistic>",
+    "estimated_source": "<e.g. DSLR, Smartphone, AI Diffusion, GAN, Midjourney-like>"
+  },
+  "ai_signals": [<strings — red flags suggesting AI generation>],
+  "real_signals": [<strings — signs it's a real photo>],
+  "uncertain_signals": [<strings — ambiguous indicators>],
+  "breakdown": {
+    "noise_pattern": <0-100, higher = more natural/real>,
+    "edge_coherence": <0-100, higher = more natural>,
+    "texture_realism": <0-100, higher = more real>,
+    "lighting_consistency": <0-100, higher = more consistent>,
+    "artifact_presence": <0-100, higher = more AI artifacts>
+  }
+}`;
+
+    try {
+    const response = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        image: base64, 
+        prompt: prompt 
+      })
+    });
+
+    const data = await response.json();
+    clearInterval(stepInterval);
+
+    // This part tells the website to read the AI's answer
+    const result = JSON.parse(data.answer);
+    displayResults(result);
+
+  } catch (error) {
+    clearInterval(stepInterval);
+    console.error("Analysis Error:", error);
+    alert("Analysis failed. Check API setup.");
+    resetAll();
+  }
+}
+
+function displayResults(data) {
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('results').style.display = 'block';
+
+  const isAi = data.verdict === 'AI_GENERATED';
+  const banner = document.getElementById('verdictBanner');
+  banner.className = `verdict-banner ${isAi ? 'ai' : 'real'}`;
+  
+  document.getElementById('verdictIcon').textContent = isAi ? '🤖' : '📸';
+  document.getElementById('verdictTitle').textContent = isAi ? 'AI Generated' : 'Camera Photo';
+  document.getElementById('verdictSub').textContent = data.summary;
+
+  const confValue = document.getElementById('confValue');
+  const confBar = document.getElementById('confBar');
+  confValue.textContent = data.confidence + '%';
+  confBar.style.width = data.confidence + '%';
+  confBar.className = `conf-bar-fill ${isAi ? 'ai' : 'real'}`;
+
+  // Fill Details Grid
+  const grid = document.getElementById('detailsGrid');
+  grid.innerHTML = '';
+  for (const [key, val] of Object.entries(data.details)) {
+    grid.innerHTML += `
+      <div class="detail-card">
+        <div class="detail-key">${key.replace('_', ' ')}</div>
+        <div class="detail-val">${val}</div>
+      </div>`;
+  }
+
+  // Fill Signals
+  const tags = document.getElementById('signalTags');
+  tags.innerHTML = '';
+  data.ai_signals.forEach(s => tags.innerHTML += `<span class="tag negative">${s}</span>`);
+  data.real_signals.forEach(s => tags.innerHTML += `<span class="tag positive">${s}</span>`);
+
+  // Fill Breakdown
+  const bdown = document.getElementById('breakdownItems');
+  bdown.innerHTML = '';
+  for (const [key, val] of Object.entries(data.breakdown)) {
+    bdown.innerHTML += `
+      <div class="breakdown-item">
+        <span class="breakdown-name">${key.replace('_', ' ')}</span>
+        <span class="breakdown-score">${val}/100</span>
+      </div>`;
+  }
+}
+
+function resetAll() {
+  currentFile = null;
+  document.getElementById('fileInput').value = '';
+  document.getElementById('uploadZone').style.display = 'block';
+  document.getElementById('previewSection').style.display = 'none';
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('analyzeBtn').disabled = false;
+}
+</script>
+</body>
+</html>
