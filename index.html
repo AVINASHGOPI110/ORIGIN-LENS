@@ -756,9 +756,21 @@ Analyze this image carefully and return ONLY valid JSON (no markdown, no extra t
     clearInterval(stepInterval);
 
     // This part tells the website to read the AI's answer
-    const result = JSON.parse(data.answer);
-    displayResults(result);
+    let result;
 
+try {
+  result = JSON.parse(data.answer);
+} catch (e) {
+  console.error("JSON Parse Error:", data.answer);
+
+  alert("⚠️ Analysis failed. Please try again.");
+
+  resetAll();
+  return;
+}
+
+displayResults(result);
+      
   } catch (error) {
     clearInterval(stepInterval);
     console.error("Analysis Error:", error);
