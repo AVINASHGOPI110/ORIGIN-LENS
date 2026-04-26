@@ -1,10 +1,13 @@
 module.exports = async function handler(req, res) {
+  console.log("API KEY EXISTS:", !!process.env.GEMINI_API_KEY);
+console.log("BODY RECEIVED:", req.body);
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method Not Allowed" });
   }
 
   try {
     const { prompt, image } = req.body;
+    const cleanImage = image.replace(/^data:image\/\w+;base64,/, "");
 
     const API_KEY = process.env.GEMINI_API_KEY;
 
@@ -24,7 +27,7 @@ module.exports = async function handler(req, res) {
             {
               inline_data: {
                 mime_type: "image/jpeg",
-                data: image,
+                data: cleanImage,
               },
             },
           ]
