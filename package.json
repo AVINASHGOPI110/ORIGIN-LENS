@@ -1,4 +1,12 @@
 {
   "name": "origin-lens",
-  "version": "1.0.0"
+  "version": "1.0.0",
+  "private": true,
+  "description": "AI-assisted image origin analysis web app.",
+  "scripts": {
+    "check": "node --check api/analyze.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
 }
